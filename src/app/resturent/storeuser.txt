@@ -1,0 +1,22 @@
+import { configureStore } from "@reduxjs/toolkit";
+import usersReducer from "./slices/userSlice";
+
+export const store = configureStore({
+  reducer: {
+    users: usersReducer,
+  },
+});
+
+store.subscribe(() => {
+  try {
+    const state = store.getState();
+    const toSave = {
+      users: state.users.users,
+    };
+    localStorage.setItem("users_state", JSON.stringify(toSave));
+  } catch (err) {}
+});
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+

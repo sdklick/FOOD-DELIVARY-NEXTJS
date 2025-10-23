@@ -1,0 +1,111 @@
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import type { PayloadAction } from "@reduxjs/toolkit";
+import type { RootState } from "../store";
+
+export interface Company {
+  name?: string;
+}
+export interface User {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  name?: string; 
+  email: string;
+  phone?: string;
+  company?: Company;
+  [key: string]: any;
+}
+
+interface UsersState {
+  users: User[];
+  status: "idle" | "loading" | "succeeded" | "failed";
+  error: string | null;
+}
+
+const loadFromLocal = (): User[] => {
+  try {
+    const raw = localStorage.getItem("users_state");
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return parsed.users ?? [];
+  } catch {
+    return [];
+  }
+};
+
+const initialState: UsersState = {
+  users: loadFromLocal(),
+  status: "idle",
+  error: null,
+};
+
+
+export const fetchUsers = createAsyncThunk<User[]>(
+  "users/fetchUsers",
+  async () => {
+    const res = await fetch("https://dummyjson.com/users");
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    const users = data.users as any[];
+    return users.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      name:
+        u.firstName && u.lastName
+          ? `${u.firstName} ${u.lastName}`
+          : u.name ?? `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim(),
+      email: u.email,
+      phone: u.phone,
+      company: u.company ?? { name: u.company?.name ?? "" },
+      ...u,
+    }));
+  }
+);
+
+export const usersSlice = createSlice({
+  name: "users",
+  initialState,
+  reducers: {
+    reorderUsers(state, action: PayloadAction<{ from: number; to: number }>) {
+      const { from, to } = action.payload;
+      if (from === to) return;
+      const [moved] = state.users.splice(from, 1);
+      state.users.splice(to, 0, moved);
+    },
+    setUsers(state, action: PayloadAction<User[]>) {
+      state.users = action.payload;
+    },
+    clearUsers(state) {
+      state.users = [];
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchUsers.pending, (s) => {
+        s.status = "loading";
+        s.error = null;
+      })
+      .addCase(fetchUsers.fulfilled, (s, action) => {
+        s.status = "succeeded";
+        if (s.users.length === 0) {
+          s.users = action.payload;
+        }
+      })
+      .addCase(fetchUsers.rejected, (s, action) => {
+        s.status = "failed";
+        s.error = action.error.message ?? "Failed to fetch";
+      });
+  },
+});
+
+export const { reorderUsers, setUsers, clearUsers } = usersSlice.actions;
+
+export const selectUsers = (state: RootState) => state.users.users;
+export const selectUsersStatus = (state: RootState) => state.users.status;
+export const selectUsersError = (state: RootState) => state.users.error;
+
+export default usersSlice.reducer;
+
