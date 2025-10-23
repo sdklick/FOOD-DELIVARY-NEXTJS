@@ -1,0 +1,102 @@
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useAppDispatch, useAppSelector } from "./redux/hooks";
+import {
+  fetchUsers,
+  reorderUsers,
+  selectUsers,
+  selectUsersStatus,
+} from "./redux/slices/userSlice";
+import SortableRow from "./SortableRow";
+import SearchBar from "./SearchBar";
+import DownloadButton from "./DownloadButton";
+
+const UsersTable: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const users = useAppSelector(selectUsers);
+  const status = useAppSelector(selectUsersStatus);
+  const [search, setSearch] = useState("");
+
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  useEffect(() => {
+    if (users.length === 0 && status === "idle") dispatch(fetchUsers());
+  }, [dispatch, users.length, status]);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return users.filter((u) =>
+      (u.name ?? `${u.firstName ?? ""} ${u.lastName ?? ""}`)
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [search, users]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = users.findIndex((u) => String(u.id) === active.id);
+    const newIndex = users.findIndex((u) => String(u.id) === over.id);
+
+    dispatch(reorderUsers({ from: oldIndex, to: newIndex }));
+  };
+
+  return (
+    <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
+      <h2>User List</h2>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <SearchBar value={search} onChange={setSearch} />
+        <DownloadButton users={filtered} />
+      </div>
+
+      {status === "loading" && <p>Loading users...</p>}
+      {status === "failed" && (
+        <p style={{ color: "red" }}>Failed to load users.</p>
+      )}
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={filtered.map((u) => String(u.id))}
+          strategy={verticalListSortingStrategy}
+        >
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #ddd" }}>
+                <th style={{ padding: 8 }}>#</th>
+                <th style={{ padding: 8 }}>Name</th>
+                <th style={{ padding: 8 }}>Email</th>
+                <th style={{ padding: 8 }}>Phone</th>
+                <th style={{ padding: 8 }}>Company</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((user) => (
+                <SortableRow key={user.id} user={user} />
+              ))}
+            </tbody>
+          </table>
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+};
+
+export default UsersTable;
+

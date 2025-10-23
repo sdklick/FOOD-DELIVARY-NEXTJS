@@ -1,0 +1,38 @@
+import React from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { User } from "./redux/slices/userSlice";
+
+interface Props {
+  user: User;
+}
+
+const SortableRow: React.FC<Props> = ({ user }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: String(user.id) });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    background: isDragging ? "#f0f8ff" : "white",
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <td style={{ padding: 8 }}>{user.id}</td>
+      <td style={{ padding: 8 }}>{user.name}</td>
+      <td style={{ padding: 8 }}>{user.email}</td>
+      <td style={{ padding: 8 }}>{user.phone}</td>
+      <td style={{ padding: 8 }}>{user.company?.name ?? "-"}</td>
+    </tr>
+  );
+};
+
+export default SortableRow;
+

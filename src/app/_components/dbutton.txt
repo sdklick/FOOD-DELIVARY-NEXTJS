@@ -1,0 +1,45 @@
+import React from "react";
+import type { User } from "./redux/slices/userSlice";
+
+interface Props {
+  users: User[];
+}
+
+const DownloadButton: React.FC<Props> = ({ users }) => {
+  const downloadCSV = () => {
+    const rows = users.map((u) => ({
+      Name: u.name,
+      Email: u.email,
+      Phone: u.phone ?? "",
+      Company: u.company?.name ?? "",
+    }));
+
+    const header = Object.keys(rows[0] ?? { Name: "", Email: "", Phone: "", Company: "" });
+    const csv = [
+      header.join(","),
+      ...rows.map((r) =>
+        header
+          .map((h) => {
+            const val = String((r as any)[h] ?? "").replace(/"/g, '""');
+            return val.includes(",") ? `"${val}"` : val;
+          })
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "users.csv";
+    link.click();
+  };
+
+  return (
+    <button onClick={downloadCSV} style={{ padding: "8px 12px" }}>
+      Download CSV
+    </button>
+  );
+};
+
+export default DownloadButton;
+
